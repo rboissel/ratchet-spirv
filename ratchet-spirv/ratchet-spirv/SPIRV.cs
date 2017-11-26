@@ -19,13 +19,34 @@ namespace Ratchet.Code
             protected string _Name = "";
             public string Name { get { return _Name; } set { _Name = value; } }
 
-
+            List<Decoration> _Decorations = new List<SPIRV.Decoration>();
+            public List<Decoration> Decorations { get { return _Decorations; } }
             protected Item() { _Id = 0; }
             protected Item(uint Id) { _Id = Id; }
 
             public override string ToString()
             {
                 return "%" + _Id.ToString() + " " + _Name;
+            }
+        }
+
+        public class Variable : Item
+        {
+            Builtin _Builtin = Builtin.NONE;
+            public Builtin Builtin { get { return _Builtin; } set { _Builtin = value; } }
+            PointerType _Type = null;
+            public PointerType Type { get { return _Type; } }
+            Item _Initializer = null;
+            public Item Initializer { get { return _Initializer; } }
+            StorageClass _StorageClass = StorageClass.PRIVATE;
+            public StorageClass StorageClass { get { return _StorageClass; } }
+
+            public Variable(uint Id, StorageClass StorageClass, PointerType Type, Item Initializer) : base(Id) { _Type = Type; _Initializer = Initializer; _StorageClass = StorageClass; }
+
+            public override string ToString()
+            {
+                if (_Initializer == null) { return _Type.TypeName + " %" + Id.ToString(); }
+                else { return _Type.TypeName + " %" + Id.ToString() + " = " + _Initializer.ToString(); }
             }
         }
 
@@ -61,6 +82,45 @@ namespace Ratchet.Code
             public override string TypeName { get { return "Float" + _Width.ToString(); } }
         }
 
+        public class VectorType : Type
+        {
+            Type _Type;
+            public Type Type { get { return _Type; } }
+            uint _ComponentCount = 2;
+            public uint ComponentCount { get { return _ComponentCount; } }
+            public VectorType(uint Id, Type Type, uint ComponentCount) : base(Id) { _ComponentCount = ComponentCount; _Type = Type; }
+            public override string TypeName { get { return "Vector" + _ComponentCount.ToString() + "<" + _Type.TypeName + ">"; } }
+        }
+
+        public class ArrayType : Type
+        {
+            Type _Type;
+            public Type Type { get { return _Type; } }
+            Item _Length = null;
+            public Item Length { get { return _Length; } }
+            public ArrayType(uint Id, Type Type, Item Length) : base(Id) { _Length = Length; _Type = Type; }
+            public override string TypeName { get { return _Type.TypeName  + "[" + _Length.ToString() + "]"; } }
+        }
+
+        public class Parameter
+        {
+            Type _Type;
+            public Type Type { get { return _Type; } }
+            protected string _Name = "";
+            public string Name { get { return _Name; } set { _Name = value; } }
+
+            public Parameter(Type Type) { _Type = Type; }
+        }
+
+        public class FunctionType : Type
+        {
+            Type _ReturnType;
+            public Type ReturnType { get { return _ReturnType; } }
+            Parameter[] _Parameters;
+            public Parameter[] Parameters { get { return _Parameters; } }
+            public FunctionType(uint Id, Type ReturnType, Parameter[] Parameters) : base(Id) { _ReturnType = ReturnType; _Parameters = Parameters; }
+            public override string TypeName { get { return _ReturnType.TypeName + " %" + Id.ToString() + " (...)"; } }
+        }
 
         public class VoidType : Type
         {
@@ -68,10 +128,53 @@ namespace Ratchet.Code
             public override string TypeName { get { return "Void"; } }
         }
 
-        public class Constant<T> : Item
+        public class Field
+        {
+            List<Decoration> _Decorations = new List<SPIRV.Decoration>();
+            public List<Decoration> Decorations { get { return _Decorations; } }
+            Builtin _Builtin = Builtin.NONE;
+            public Builtin Builtin { get { return _Builtin; } set { _Builtin = value; } }
+            Type _Type;
+            public Type Type { get { return _Type; } }
+            protected string _Name = "";
+            public string Name { get { return _Name; } set { _Name = value; } }
+
+            public Field(Type Type) { _Type = Type; }
+        }
+
+        public class StructType : Type
+        {
+            Field[] _Fields;
+            public Field[] Fields { get { return _Fields; } }
+            public StructType(uint Id, Field[] Fields) : base(Id) { _Fields = Fields; }
+            public override string TypeName { get { return "Struct" + ((_Name != "") ? " " + _Name : ""); } }
+        }
+
+
+        public class PointerType : Type
+        {
+            Type _Type;
+            public Type Type { get { return _Type; } }
+            StorageClass _StorageClass = StorageClass.UNIFORM_CONSTANT;
+            public StorageClass StorageClass { get { return _StorageClass; } }
+
+            public PointerType(uint Id, Type Type, StorageClass StorageClass) : base(Id) { _StorageClass = StorageClass; _Type = Type; }
+            public override string TypeName { get { return "(" + _StorageClass.ToString() + ") (" + _Type.TypeName + ") *" ; } }
+        }
+
+        public class GenericConstant : Item
+        {
+            internal virtual object GetValue() { return null; }
+            public GenericConstant(uint Id) : base (Id) { }
+
+        }
+
+        public class Constant<T> : GenericConstant
         {
             T _Value = default(T);
             public T Value { get { return _Value; } }
+            internal override object GetValue() { return _Value; }
+
 
             Type _Type;
             Type Type { get { return _Type; } }
@@ -96,6 +199,154 @@ namespace Ratchet.Code
             SIMPLE = 0,
             GLSL450 = 1,
             OPENCL = 2
+        }
+
+        public enum MemoryAccess
+        {
+            NONE = 0,
+            VOLATILE = 1,
+            ALIGNED = 2,
+            NONTEMPORAL = 4
+        }
+
+        public enum Builtin
+        {
+            POSITION=0,
+            POINT_SIZE=1,
+            CLIP_DISTANCE=2,
+            CULL_DISTANCE=4,
+            VERTEX_ID=5,
+            INSTANCE_ID=6,
+            PRIMITIVE_ID=7,
+            INVOCATION_ID=8,
+            LAYER=9,
+            VIEWPORT_INDEX=10,
+            TESS_LEVEL_OUTER=11,
+            TESS_LEVEL_INNER=12,
+            TESS_COORD = 13,
+            PATCH_VERTICES=14,
+            FRAG_COORD=15,
+            POINT_COORD=16,
+            FRONT_FACING=17,
+            SAMPLE_ID=18,
+            SAMPLE_POSITION=19,
+            SAMPLE_MASK=20,
+            FRAG_DEPTH=22,
+            HELPER_INVOCATION=23,
+            NUM_WORK_GROUP=24,
+            WORK_GROUP_SIZE=25,
+            WORK_GROUP_ID=26,
+            LOCAL_INVOCATION_ID=27,
+            GLOBAL_INVOCATION_ID=28,
+            LOCAL_INVOCATION_IDEX=29,
+            WORK_DIM=30,
+            GLOBAL_SIZE=31, 
+            ENQUEUED_WORK_GROUP_SIZE=32,
+            GLOBAL_OFFSET=33,
+            GLOBAL_LINEAR_ID=34,
+            SUBGROUP_SIZE=36,
+            SUBGROUP_MAX_SIZE=37,
+            NUM_SUBGROUPS=38,
+            NUM_ENQUEUED_SUBGROUP=39,
+            SUBGROUP_ID=40,
+            SUBGROUP_LOCAL_INVOCATION_ID=41,
+            VERTEX_INDEX=42,
+            INSTANCE_INDEX=43,
+            SUBGROUP_EQ_MASK_KHR=4416,
+            SUBGROUP_GE_MASK_KHR = 4417,
+            SUBGROUP_GT_MASK_KHR = 4418,
+            SUBGROUP_LE_MASK_KHR = 4419,
+            SUBGROUP_LT_MASK_KHR = 4420,
+            BASE_VERTEX=4424,
+            BASE_INSTANCE=4425,
+            DRAW_INDEX=4426,
+            DEVICE_INDEX=4438,
+            VIEW_INDEX=4440,
+            BARY_COORD_NO_PERSP_AMD=4992,
+            BARY_COORD_NO_PERSP_CENTROID_AMD = 4993,
+            BARY_COORD_NO_PERSP_SAMPLE_AMD = 4994,
+            BARY_COORD_NO_PERSP_SMOOTH_AMD = 4995,
+            BARY_COORD_NO_PERSP_SMOOTH_CENTROID_AMD = 4996,
+            BARY_COORD_NO_PERSP_SMOOTH_SAMPLE_AMD = 4997,
+            BARY_COORD_NO_PERSP_PULL_MODEL_AMD = 4998,
+            FRAG_STENCIL_REF_EXT = 5014,
+            VIEWPORT_MASK_NV = 5253,
+            SECONDARY_POSITION_NV = 5257,
+            SECONDARY_VIEWPORT_MASK_NV= 5258,
+            POSITION_PER_VIEW_NV = 5261,
+            VIEWPORT_MASK_PER_VIEW_NV = 5262,
+
+
+            NONE = 0xFFFF
+        }
+
+        public enum Decoration
+        {
+            RELAXED_PRECISION=0,
+            SPEC_ID=1,
+            BLOCK = 2,
+            BUFFER_BLOCK=3,
+            ROW_MAJOR=4,
+            COL_MAJOR=5,
+            ARRAY_STRIDE=6,
+            MATRIX_STRIDE=7,
+            GLSL_SHARED=8,
+            GLSL_PACKED=9,
+            C_PACKED=10,
+            BUILTIN=11,
+            NO_PERSPECTIVE=13,
+            FLAT=14,
+            PATCH=15,
+            CENTROID=16,
+            SAMPLE=17,
+            INVARIANT=18,
+            RESTRICT=19,
+            ALIASED = 20,
+            VOLATILE=21,
+            CONSTANT=22,
+            COHERENT=23,
+            NON_WRITABLE=24,
+            NON_READABLE=25,
+            UNIFORM=26,
+            SATURATED_CONVERSION=28,
+            STREAM=29,
+            LOCATION=30,
+            COMPONENT=31,
+            INDEX=32,
+            BINDING=33,
+            DESCRIPTOR_SET=34,
+            OFFSET=35,
+            XFB_BUFFER=36,
+            XFB_STRIDE=37,
+            FUNC_PARAM_ATTR=38,
+            FP_ROUNDING_MODE=39,
+            FP_FAST_MATH_MODE=40,
+            LINKAGE_ATTRIBUTES=41,
+            NO_CONTRACTION=42,
+            INPUT_ATTACHMENT_INDEX=43,
+            ALIGNEMENT=44,
+            EXPLICIT_INTERP_AMD=4999,
+            OVERRIDE_COVERAGE_NV=5248,
+            PASSTHROUGH_NV=5250,
+            VIEWPORT_RELATIVE_NV=5252,
+            SECONDARY_VIEWPORT_RELATIVE_NV=5256
+        }
+
+        public enum StorageClass
+        {
+            UNIFORM_CONSTANT = 0,
+            INPUT = 1,
+            UNIFORM = 2,
+            OUTPUT = 3,
+            WORKGROUP = 4,
+            CROSS_WORKGROUP = 5,
+            PRIVATE = 6,
+            FUNCTION = 7,
+            GENERIC = 8,
+            PUSH_CONSTANT = 9,
+            ATOMIC_COUNTER = 10,
+            IMAGE = 11,
+            STORAGE_BUFFER = 12
         }
 
         public enum Capability
@@ -254,6 +505,10 @@ namespace Ratchet.Code
             Module module = new Module();
             SPIRVModuleReader reader = SPIRVModuleReader.Create(System.IO.File.OpenRead(File));
             List<Instruction> instructions = new List<Instruction>();
+            Dictionary<uint, string> names = new Dictionary<uint, string>();
+            Dictionary<uint, Dictionary<uint, string>> memberNames = new Dictionary<uint, Dictionary<uint, string>>();
+            List<Instruction> decorations = new List<Instruction>();
+
             Function currentFunction = null;
             Dictionary<uint, Item> items = new Dictionary<uint, Item>();
             List<PendingEntryPoint> entryPoints = new List<PendingEntryPoint>();
@@ -271,12 +526,16 @@ namespace Ratchet.Code
                             if (data == null || data.Length != 4) { throw new Exception("Invalid Function opcode."); }
                             if (currentFunction != null) { throw new Exception("Invalid function declaration. Functions can't be neasted"); }
 
-                            uint resultType = data[0];
+                            uint resultTypeId = data[0];
                             uint id = data[1];
+                            uint functionTypeId = data[3];
+
+                            if (!items.ContainsKey(functionTypeId)) { throw new Exception("The Type " + id.ToString() + " does not exist"); }
+                            if (!(items[functionTypeId] is FunctionType)) { throw new Exception("The Item " + id.ToString() + " is not a function type"); }
+
                             Function.FunctionControl control = (Function.FunctionControl)data[2];
                             uint functionType = data[0];
-                            currentFunction = new Function(id);
-                            currentFunction.Control = control;
+                            currentFunction = new Function(id, control, (items[functionTypeId] as FunctionType));
                             if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
                             items.Add(id, currentFunction);
                         }
@@ -311,12 +570,61 @@ namespace Ratchet.Code
                         break;
                     case OpCodes.OpName:
                         {
+                            uint offset = 0;
+
                             if (data == null || data.Length < 2) { throw new Exception("Invalid Name opcode."); }
-                            if (items.ContainsKey(data[0]))
+                            if (!names.ContainsKey(data[0]))
                             {
-                                uint offset = 0;
-                                items[data[0]].Name = reader.LiteralStringFromData(data, 1, out offset);
+                                names.Add(data[0], reader.LiteralStringFromData(data, 1, out offset));
                             }
+                        }
+                        break;
+                    case OpCodes.OpMemberName:
+                        {
+                            if (data == null || data.Length < 3) { throw new Exception("Invalid MemberName opcode."); }
+
+                            uint structId = data[0];
+                            uint memberNameId = data[1];
+                            uint offset = 0;
+                            if (!memberNames.ContainsKey(structId))
+                            {
+                                memberNames.Add(structId, new Dictionary<uint, string>());
+                            }
+
+                            if (!memberNames[structId].ContainsKey(memberNameId))
+                            {
+                                memberNames[structId].Add(memberNameId, reader.LiteralStringFromData(data, 2, out offset));
+                            }
+                        }
+                        break;
+                    case OpCodes.OpTypePointer:
+                        {
+                            if (data == null || data.Length != 3) { throw new Exception("Invalid TypeVoid opcode."); }
+                            uint id = data[0];
+                            StorageClass storageClass = (StorageClass)data[1];
+                            uint typeId = data[2];
+
+                            if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
+                            if (!items.ContainsKey(typeId)) { throw new Exception("The Type " + id.ToString() + " does not exist"); }
+                            if (!(items[typeId] is Type)) { throw new Exception("The Item " + id.ToString() + " is not a type"); }
+
+                            PointerType pointerType = new PointerType(id, (items[typeId] as Type), storageClass);
+                            items.Add(id, pointerType);
+                        }
+                        break;
+                    case OpCodes.OpTypeArray:
+                        {
+                            if (data == null || data.Length != 3) { throw new Exception("Invalid TypeVoid opcode."); }
+                            uint id = data[0];
+                            if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
+                            uint lengthId = data[2];
+                            if (!items.ContainsKey(lengthId)) { throw new Exception("The Item " + id.ToString() + " does not exist"); }
+                            uint typeId = data[1];
+                            if (!items.ContainsKey(typeId)) { throw new Exception("The Type " + id.ToString() + " does not exist"); }
+
+
+                            ArrayType arrayType = new ArrayType(id, items[typeId] as Type, items[lengthId]);
+                            items.Add(id, arrayType);
                         }
                         break;
                     case OpCodes.OpTypeVoid:
@@ -340,6 +648,20 @@ namespace Ratchet.Code
                             items.Add(id, integerType);
                         }
                         break;
+                    case OpCodes.OpTypeVector:
+                        {
+                            if (data == null || data.Length != 3) { throw new Exception("Invalid TypeVoid opcode."); }
+                            uint id = data[0];
+                            if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
+                            uint count = data[2];
+                            if (count < 2) { throw new Exception("A vector must have at least 2 components"); }
+                            uint typeId = data[1];
+                            if (!items.ContainsKey(typeId)) { throw new Exception("The Type " + id.ToString() + " does not exist"); }
+
+                            VectorType vectorType = new VectorType(id, (items[typeId] as Type), count);
+                            items.Add(id, vectorType);
+                        }
+                        break;
                     case OpCodes.OpTypeFloat:
                         {
                             if (data == null || data.Length != 2) { throw new Exception("Invalid TypeInt opcode."); }
@@ -349,6 +671,46 @@ namespace Ratchet.Code
                             if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
                             FloatingPointType floatingPointType = new FloatingPointType(id, width);
                             items.Add(id, floatingPointType);
+                        }
+                        break;
+                    case OpCodes.OpTypeFunction:
+                        {
+                            if (data == null || data.Length < 2) { throw new Exception("Invalid TypeFunction opcode."); }
+                            uint id = data[0];
+                            uint returnTypeId = data[1];
+                            if (!items.ContainsKey(returnTypeId)) { throw new Exception("The item " + returnTypeId.ToString() + " has not been declared"); }
+                            if (!(items[returnTypeId] is Type)) { throw new Exception("The item " + returnTypeId.ToString() + " is not a type"); }
+                            Type returnType = items[returnTypeId] as Type;
+
+                            List<Parameter> parameters = new List<Parameter>();
+                            for (int n = 2; n < data.Length; n++)
+                            {
+                                uint paramType = data[n];
+                                if (!items.ContainsKey(paramType)) { throw new Exception("The item " + paramType.ToString() + " has not been declared"); }
+                                if (!(items[paramType] is Type)) { throw new Exception("The item " + paramType.ToString() + " is not a type"); }
+
+                                parameters.Add(new Parameter(items[paramType] as Type));
+                            }
+
+                            items.Add(id, new FunctionType(id, returnType, parameters.ToArray()));
+                        }
+                        break;
+                    case OpCodes.OpTypeStruct:
+                        {
+                            if (data == null || data.Length < 2) { throw new Exception("Invalid TypeStruct opcode."); }
+                            uint id = data[0];
+
+                            List<Field> fields = new List<Field>();
+                            for (int n = 1; n < data.Length; n++)
+                            {
+                                uint fieldType = data[n];
+                                if (!items.ContainsKey(fieldType)) { throw new Exception("The item " + fieldType.ToString() + " has not been declared"); }
+                                if (!(items[fieldType] is Type)) { throw new Exception("The item " + fieldType.ToString() + " is not a type"); }
+
+                                fields.Add(new Field(items[fieldType] as Type));
+                            }
+
+                            items.Add(id, new StructType(id, fields.ToArray()));
                         }
                         break;
                     case OpCodes.OpConstant:
@@ -368,24 +730,129 @@ namespace Ratchet.Code
                                 
                                 if (integerType.Signedness)
                                 {
-                                    if (integerType.Width == 8) { unchecked { items.Add(id, new Constant<sbyte>(id, (sbyte)data[2], type as IntegerType)); } }
-                                    else if (integerType.Width == 16) { unchecked { items.Add(id, new Constant<short>(id, (short)data[2], type as IntegerType)); } }
-                                    else if (integerType.Width == 32) { unchecked { items.Add(id, new Constant<int>(id, (int)data[2], type as IntegerType)); } }
-                                    else { throw new Exception("Invalid Integer Type"); }
+                                    if (integerType.Width == 8) { unchecked { items.Add(id, new Constant<sbyte>(id, (sbyte)data[2], type)); } }
+                                    else if (integerType.Width == 16) { unchecked { items.Add(id, new Constant<short>(id, (short)data[2], type)); } }
+                                    else if (integerType.Width == 32) { unchecked { items.Add(id, new Constant<int>(id, (int)data[2], type)); } }
+                                    else { throw new Exception("Not supported Integer Type"); }
                                 }
                                 else
                                 {
-                                    if (integerType.Width == 8) { unchecked { items.Add(id, new Constant<byte>(id, (byte)data[2], type as IntegerType)); } }
-                                    else if (integerType.Width == 16) { unchecked { items.Add(id, new Constant<ushort>(id, (ushort)data[2], type as IntegerType)); } }
-                                    else if (integerType.Width == 32) { unchecked { items.Add(id, new Constant<uint>(id, (uint)data[2], type as IntegerType)); } }
-                                    else { throw new Exception("Invalid Integer Type"); }
+                                    if (integerType.Width == 8) { unchecked { items.Add(id, new Constant<byte>(id, (byte)data[2], type)); } }
+                                    else if (integerType.Width == 16) { unchecked { items.Add(id, new Constant<ushort>(id, (ushort)data[2], type)); } }
+                                    else if (integerType.Width == 32) { unchecked { items.Add(id, new Constant<uint>(id, (uint)data[2], type)); } }
+                                    else { throw new Exception("Not supported Integer Type"); }
                                 }
                             }
                             else if (type is FloatingPointType)
                             {
-                                throw new Exception("Invalid Floating Point Type");
+                                FloatingPointType  floatingPointType = (type as FloatingPointType);
+                                if (floatingPointType.Width == 16) { items.Add(id, new Constant<float>(id, reader.Float16FromData(data, 2), type)); }
+                                else if (floatingPointType.Width == 32) { items.Add(id, new Constant<float>(id, reader.Float32FromData(data, 2), type)); }
+                                else if (floatingPointType.Width == 64) { items.Add(id, new Constant<double>(id, reader.Float64FromData(data, 2), type)); }
+                                else { throw new Exception("Not supported Floating Point Type"); }
                             }
                         }
+                        break;
+                    case OpCodes.OpConstantComposite:
+                        {
+                            uint id = data[1];
+                            uint typeId = data[0];
+
+                            if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
+                            if (!items.ContainsKey(typeId)) { throw new Exception("The Type " + id.ToString() + " does not exist"); }
+                            if (!(items[typeId] is Type)) { throw new Exception("The Item " + id.ToString() + " is not a type"); }
+
+                            if (items[typeId] is VectorType)
+                            {
+                                VectorType type = items[typeId] as VectorType;
+                                if (data.Length - 2 != type.ComponentCount) { throw new Exception("Missing element in the vector declatarion"); }
+                                if (type.Type is FloatingPointType)
+                                {
+                                    uint n = 0;
+                                    FloatingPointType fpointtype = (type.Type as FloatingPointType);
+                                    switch (fpointtype.Width)
+                                    {
+                                        case 32:
+                                        case 16:
+                                            {
+                                                float[] array = new float[type.ComponentCount];
+                                                while (n < type.ComponentCount)
+                                                {
+                                                    if (!items.ContainsKey(data[n + 2])) { throw new Exception("Invalid id " + data[n + 2] + " the item is not yet declared"); }
+                                                    if (!(items[data[n + 2]] is Constant<float>)) { throw new Exception("%" + data[n + 2] + " is not a valid constant"); }
+                                                    array[n] = (items[data[n + 2]] as Constant<float>).Value;
+                                                    n++;
+                                                }
+                                                items.Add(id, new Constant<float[]>(id, array, type));
+                                                break;
+                                            }
+                                        case 64:
+                                            {
+                                                double[] array = new double[type.ComponentCount];
+                                                while (n < type.ComponentCount)
+                                                {
+                                                    if (!items.ContainsKey(data[n + 2])) { throw new Exception("Invalid id " + data[n + 2] + " the item is not yet declared"); }
+                                                    if (!(items[data[n + 2]] is Constant<double>)) { throw new Exception("%" + data[n + 2] + " is not a valid constant"); }
+                                                    array[n] = (items[data[n + 2]] as Constant<double>).Value;
+                                                    n++;
+                                                }
+                                                items.Add(id, new Constant<double[]>(id, array, type));
+                                                break;
+                                            }
+                                    }
+
+                                }
+                            }
+                            else if (items[typeId] is ArrayType)
+                            {
+                                ArrayType type = items[typeId] as ArrayType;
+                                uint length = 0;
+                                if (type.Length is Constant<UInt32>) { length = (type.Length as Constant<UInt32>).Value; }
+                                else if (type.Length is Constant<Int32>) { length = (uint)(type.Length as Constant<Int32>).Value; }
+                                else if (type.Length is Constant<UInt16>) { length = (uint)(type.Length as Constant<UInt16>).Value; }
+                                else if (type.Length is Constant<Int16>) { length = (uint)(type.Length as Constant<Int16>).Value; }
+                                else if (type.Length is Constant<UInt64>) { length = (uint)(type.Length as Constant<UInt16>).Value; }
+                                else if (type.Length is Constant<Int64>) { length = (uint)(type.Length as Constant<Int16>).Value; }
+                                else { throw new Exception("can't evalutate the length of the array at load time to ddeclare the constant " + id.ToString()); }
+
+
+                                object[] array = new object[length];
+                                for (uint n = 0; n < length; n++)
+                                {
+                                    if (!items.ContainsKey(data[n + 2])) { throw new Exception("Invalid id " + data[n + 2] + " the item is not yet declared"); }
+                                    if (!(items[data[n + 2]] is GenericConstant)) { throw new Exception("%" + data[n + 2] + " is not a valid constant"); }
+
+                                    array[n] = (items[data[n + 2]] as GenericConstant).GetValue();
+                                }
+                                items.Add(id, new Constant<object[]>(id, array, type));
+                                break;
+                            }
+                            else { throw new Exception("Invalid type for a acomposite constant"); }
+                        }
+                        break;
+                    case OpCodes.OpVariable:
+                        {
+                            if (data.Length < 3) { throw new Exception("Invalid opcode OpVariable"); }
+
+                            uint id = data[1];
+                            uint typeId = data[0];
+                            StorageClass storageClass = (StorageClass)data[2];
+
+                            if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
+                            if (!items.ContainsKey(typeId)) { throw new Exception("The Type " + id.ToString() + " does not exist"); }
+                            if (!(items[typeId] is PointerType)) { throw new Exception("The Item " + id.ToString() + " is not a pointer type"); }
+
+                            if (data.Length == 3) { items.Add(id, new Variable(id, storageClass, (items[typeId] as PointerType), null)); }
+                            else { items.Add(id, new Variable(id, storageClass, (items[typeId] as PointerType), items[data[4]])); }
+                        }
+                        break;
+                    case OpCodes.OpDecorate:
+                        if (data.Length < 2) { throw new Exception("Invalid opcode OpDecorate"); }
+                        decorations.Add(instruction);
+                        break;
+                    case OpCodes.OpMemberDecorate:
+                        if (data.Length < 3) { throw new Exception("Invalid opcode OpMemberDecorate"); }
+                        decorations.Add(instruction);
                         break;
                     default:
                         if (currentFunction != null)
@@ -401,6 +868,79 @@ namespace Ratchet.Code
             }
 
             if (currentFunction != null) { throw new Exception("Missing FunctionEnd"); }
+
+            foreach (KeyValuePair<uint, string> name in names)
+            {
+                if (items.ContainsKey(name.Key)) { items[name.Key].Name = name.Value; }
+            }
+
+
+            foreach (KeyValuePair<uint, Dictionary<uint, string>> structnames in memberNames)
+            {
+                if (items.ContainsKey(structnames.Key))
+                {
+                    if (items[structnames.Key] is StructType)
+                    {
+                        StructType structtype = items[structnames.Key] as StructType;
+                        foreach (KeyValuePair<uint, string> name in structnames.Value)
+                        {
+                            if (structtype.Fields.Length < name.Key) { continue; }
+                            structtype.Fields[name.Key].Name = name.Value;
+                        }
+                    }
+                }
+            }
+
+            foreach (Instruction decoration in decorations)
+            {
+                uint[] data = decoration.Data as uint[];
+                Decoration decorationFlag;
+                Item target;
+                uint targetid = data[0];
+                if (!items.ContainsKey(targetid)) { throw new Exception("The item " + targetid.ToString() + " has not been declared"); }
+                target = items[targetid];
+
+                if (decoration.OpCode.OpCodeValue == OpCodes.OpMemberDecorate)
+                {
+                    uint fieldid = data[1];
+
+                    if (target is StructType)
+                    {
+                        StructType structure = (target as StructType);
+                        if (fieldid >= structure.Fields.Length) { throw new Exception("The specified field in the structure does not exist"); }
+                        decorationFlag = (Decoration)data[2];
+                        if (decorationFlag == Decoration.BUILTIN)
+                        {
+                            if (data.Length < 4) { throw new Exception("Invalid builtin decoration"); }
+                            Builtin buitin = (Builtin)data[3];
+                            structure.Fields[fieldid].Builtin = buitin;
+                        }
+                        else
+                        {
+                            structure.Fields[fieldid].Decorations.Add(decorationFlag);
+                        }
+                    }
+                    else { throw new Exception("Invalid target for the decoration"); }
+                }
+                else if (decoration.OpCode.OpCodeValue == OpCodes.OpDecorate)
+                {
+                    decorationFlag = (Decoration)data[1];
+                    if (decorationFlag == Decoration.BUILTIN)
+                    {
+                        if (data.Length < 3) { throw new Exception("Invalid builtin decoration"); }
+                        Builtin buitin = (Builtin)data[2];
+                        if (target is Variable) { (target as Variable).Builtin = buitin; }
+                        else { throw new Exception("Invalid target for the builtin decoration"); }
+                    }
+                    else
+                    {
+                        target.Decorations.Add(decorationFlag);
+                    }
+                }
+                else { throw new Exception("Invalid decoration"); }
+
+
+            }
 
             foreach (Item item in items.Values)
             {
@@ -419,6 +959,9 @@ namespace Ratchet.Code
                 {
                     case PendingEntryPoint.EntryPointExecutionModel.Fragment:
                         finalEntryPoint = new Fragment(function, pendingEntryPoint.Name);
+                        break;
+                    case PendingEntryPoint.EntryPointExecutionModel.Vertex:
+                        finalEntryPoint = new Vertex(function, pendingEntryPoint.Name);
                         break;
                 }
                 module._EntryPoints.Add(finalEntryPoint);
@@ -461,10 +1004,14 @@ namespace Ratchet.Code
             internal List<Instruction> _Instructions = new List<Instruction>();
             public List<Instruction> Instructions { get { return _Instructions; } }
 
-            internal Function(uint Id) : base(Id) { }
+            Type _Type;
+            public Type Type { get { return _Type; } }
+
+            internal Function(uint Id, FunctionControl Control, Type FunctionType) : base(Id) { _Control = Control; _Type = FunctionType; }
         }
 
-        public class EntryPoint        {
+        public class EntryPoint
+        {
             protected Function _Function;
             public Function Function { get { return _Function; } }
             protected string _Name;

@@ -19,15 +19,26 @@ namespace Ratchet.Code
         public static class OpCodes
         {
             internal const int OpName = 5;
+            internal const int OpMemberName = 6;
             internal const int OpMemoryModel = 14;
             internal const int OpEntryPoint = 15;
             internal const int OpCapability = 17;
             internal const int OpTypeVoid = 19;
             internal const int OpTypeInt = 21;
             internal const int OpTypeFloat = 22;
+            internal const int OpTypeVector = 23;
+            internal const int OpTypeArray = 28;
+            internal const int OpTypeStruct = 30;
+            internal const int OpTypePointer = 32;
+            internal const int OpTypeFunction = 33;
             internal const int OpConstant = 43;
+            internal const int OpConstantComposite = 44;
             internal const int OpFunction = 54;
             internal const int OpFunctionEnd = 56;
+            internal const int OpVariable = 59;
+            internal const int OpDecorate = 71;
+            internal const int OpMemberDecorate = 72;
+
 
             public static OpCode Nop = new OpCode { WordCount = 1, OpCodeValue = 0, Name = "Nop" };
             public static OpCode Undef = new OpCode { WordCount = 3, OpCodeValue = 1, Name = "Undef" };
@@ -35,12 +46,12 @@ namespace Ratchet.Code
             public static OpCode Source = new OpCode { WordCount = 3, OpCodeValue = 3, Name = "Source" };
             public static OpCode SourceExtension = new OpCode { WordCount = 2, OpCodeValue = 4, Name = "SourceExtension" };
             public static OpCode Name = new OpCode { WordCount = 3, OpCodeValue = OpName, Name = "Name" };
-            public static OpCode MemberName = new OpCode { WordCount = 4, OpCodeValue = 6, Name = "MemberName" };
+            public static OpCode MemberName = new OpCode { WordCount = 4, OpCodeValue = OpMemberName, Name = "MemberName" };
             public static OpCode String = new OpCode { WordCount = 3, OpCodeValue = 7, Name = "String" };
             public static OpCode Line = new OpCode { WordCount = 4, OpCodeValue = 8, Name = "Line" };
             public static OpCode NoLine = new OpCode { WordCount = 1, OpCodeValue = 317, Name = "NoLine" };
-            public static OpCode Decorate = new OpCode { WordCount = 3, OpCodeValue = 71, Name = "Decorate" };
-            public static OpCode MemberDecorate = new OpCode { WordCount = 4, OpCodeValue = 72, Name = "MemberDecorate" };
+            public static OpCode Decorate = new OpCode { WordCount = 3, OpCodeValue = OpDecorate, Name = "Decorate" };
+            public static OpCode MemberDecorate = new OpCode { WordCount = 4, OpCodeValue = OpMemberDecorate, Name = "MemberDecorate" };
             public static OpCode DecorationGroup = new OpCode { WordCount = 2, OpCodeValue = 73, Name = "DecorationGroup" };
             public static OpCode GroupDecorate = new OpCode { WordCount = 2, OpCodeValue = 74, Name = "GroupDecorate" };
             public static OpCode GroupMemberDecorate = new OpCode { WordCount = 2, OpCodeValue = 75, Name = "GroupMemberDecorate" };
@@ -55,17 +66,17 @@ namespace Ratchet.Code
             public static OpCode TypeBool = new OpCode { WordCount = 2, OpCodeValue = 20, Name = "TypeBool" };
             public static OpCode TypeInt = new OpCode { WordCount = 4, OpCodeValue = OpTypeInt, Name = "TypeInt" };
             public static OpCode TypeFloat = new OpCode { WordCount = 3, OpCodeValue = OpTypeFloat, Name = "TypeFloat" };
-            public static OpCode TypeVector = new OpCode { WordCount = 4, OpCodeValue = 23, Name = "TypeVector" };
+            public static OpCode TypeVector = new OpCode { WordCount = 4, OpCodeValue = OpTypeVector, Name = "TypeVector" };
             public static OpCode TypeMatrix = new OpCode { WordCount = 4, OpCodeValue = 24, Name = "TypeMatrix" };
             public static OpCode TypeImage = new OpCode { WordCount = 9, OpCodeValue = 25, Name = "TypeImage" };
             public static OpCode TypeSampler = new OpCode { WordCount = 2, OpCodeValue = 26, Name = "TypeSampler" };
             public static OpCode TypeSampledImage = new OpCode { WordCount = 3, OpCodeValue = 27, Name = "TypeSampledImage" };
-            public static OpCode TypeArray = new OpCode { WordCount = 4, OpCodeValue = 28, Name = "TypeArray" };
+            public static OpCode TypeArray = new OpCode { WordCount = 4, OpCodeValue = OpTypeArray, Name = "TypeArray" };
             public static OpCode TypeRuntimeArray = new OpCode { WordCount = 3, OpCodeValue = 29, Name = "TypeRuntimeArray" };
-            public static OpCode TypeStruct = new OpCode { WordCount = 2, OpCodeValue = 30, Name = "TypeStruct" };
+            public static OpCode TypeStruct = new OpCode { WordCount = 2, OpCodeValue = OpTypeStruct, Name = "TypeStruct" };
             public static OpCode TypeOpaque = new OpCode { WordCount = 3, OpCodeValue = 31, Name = "TypeOpaque" };
-            public static OpCode TypePointer = new OpCode { WordCount = 4, OpCodeValue = 32, Name = "TypePointer" };
-            public static OpCode TypeFunction = new OpCode { WordCount = 3, OpCodeValue = 33, Name = "TypeFunction" };
+            public static OpCode TypePointer = new OpCode { WordCount = 4, OpCodeValue = OpTypePointer, Name = "TypePointer" };
+            public static OpCode TypeFunction = new OpCode { WordCount = 3, OpCodeValue = OpTypeFunction, Name = "TypeFunction" };
             public static OpCode TypeEvent = new OpCode { WordCount = 2, OpCodeValue = 34, Name = "TypeEvent" };
             public static OpCode TypeDeviceEvent = new OpCode { WordCount = 2, OpCodeValue = 35, Name = "TypeDeviceEvent" };
             public static OpCode TypeReserveId = new OpCode { WordCount = 2, OpCodeValue = 36, Name = "TypeReserveId" };
@@ -75,7 +86,7 @@ namespace Ratchet.Code
             public static OpCode ConstantTrue = new OpCode { WordCount = 3, OpCodeValue = 41, Name = "ConstantTrue" };
             public static OpCode ConstantFalse = new OpCode { WordCount = 3, OpCodeValue = 42, Name = "ConstantFalse" };
             public static OpCode Constant = new OpCode { WordCount = 3, OpCodeValue = OpConstant, Name = "Constant" };
-            public static OpCode ConstantComposite = new OpCode { WordCount = 3, OpCodeValue = 44, Name = "ConstantComposite" };
+            public static OpCode ConstantComposite = new OpCode { WordCount = 3, OpCodeValue = OpConstantComposite, Name = "ConstantComposite" };
             public static OpCode ConstantSampler = new OpCode { WordCount = 6, OpCodeValue = 45, Name = "ConstantSampler" };
             public static OpCode ConstantNull = new OpCode { WordCount = 3, OpCodeValue = 46, Name = "ConstantNull" };
             public static OpCode SpecConstantTrue = new OpCode { WordCount = 3, OpCodeValue = 48, Name = "SpecConstantTrue" };
@@ -83,7 +94,7 @@ namespace Ratchet.Code
             public static OpCode SpecConstant = new OpCode { WordCount = 3, OpCodeValue = 50, Name = "SpecConstant" };
             public static OpCode SpecConstantComposite = new OpCode { WordCount = 3, OpCodeValue = 51, Name = "SpecConstantComposite" };
             public static OpCode SpecConstantOp = new OpCode { WordCount = 4, OpCodeValue = 52, Name = "SpecConstantOp" };
-            public static OpCode Variable = new OpCode { WordCount = 4, OpCodeValue = 59, Name = "Variable" };
+            public static OpCode Variable = new OpCode { WordCount = 4, OpCodeValue = OpVariable, Name = "Variable" };
             public static OpCode ImageTexelPointer = new OpCode { WordCount = 4, OpCodeValue = 60, Name = "ImageTexelPointer" };
             public static OpCode Load = new OpCode { WordCount = 4, OpCodeValue = 61, Name = "Load" };
             public static OpCode Store = new OpCode { WordCount = 4, OpCodeValue = 62, Name = "Store" };

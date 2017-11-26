@@ -90,6 +90,12 @@ namespace Ratchet.Code
                 finalOffset = offset + 1;
                 return System.Text.Encoding.UTF8.GetString(text.ToArray());
             }
+            public override unsafe double Float64FromData(uint[] data, uint offset)
+            {
+                ulong word = data[offset] | ((ulong)data[offset + 1] << 32);
+                double* pDouble = (double*)&word;
+                return *pDouble;
+            }
         }
 
         class SPIRVModuleReader_BE : SPIRVModuleReader
@@ -118,7 +124,12 @@ namespace Ratchet.Code
                 finalOffset = offset + 1;
                 return System.Text.Encoding.UTF8.GetString(text.ToArray());
             }
-
+            public override unsafe double Float64FromData(uint[] data, uint offset)
+            {
+                ulong word = data[offset + 1] | ((ulong)data[offset] << 32);
+                double* pDouble = (double*)&word;
+                return *pDouble;
+            }
         }
 
         public static SPIRVModuleReader Create(System.IO.Stream Stream)
@@ -166,5 +177,42 @@ namespace Ratchet.Code
         }
 
         public abstract string LiteralStringFromData(uint[] data, uint offset, out uint finalOffset);
+        public unsafe float Float32FromData(uint[] data, uint offset)
+        {
+            uint word = data[offset];
+            float* pFloat = (float*)&word;
+            return *pFloat;
+        }
+        public abstract double Float64FromData(uint[] data, uint offset);
+        public unsafe float Float16FromData(uint[] data, uint offset)
+        {
+            ushort word = (ushort)data[offset];
+
+            if (word == 0) { return 0.0f; }
+            else if (word == 0x8000) { return -0.0f; }
+
+            bool negative = (word & 0x8000) != 0;
+            int exponant = (word & 0x7C00) >> 10;
+            int mantissa = (word & 0x03FF);
+
+            if (exponant == 0x6)
+            {
+                if (mantissa == 0)
+                {
+                    return negative ? float.NegativeInfinity : float.PositiveInfinity;
+                }
+                else
+                {
+                    return float.NaN;
+                }
+            }
+            else if (exponant == 0x0)
+            {
+                // Subnormal numbers
+                return (float)((negative ? -1.0 : 1.0) * (double)mantissa * System.Math.Pow(2.0, -24));
+            }
+
+            return (float)((negative ? -1.0 : 1.0) * (double)(mantissa) * System.Math.Pow(2.0, exponant - 25) + System.Math.Pow(2.0, exponant - 15));
+        }
     }
 }
