@@ -102,6 +102,19 @@ namespace Ratchet.Code
             public override string TypeName { get { return _Type.TypeName  + "[" + _Length.ToString() + "]"; } }
         }
 
+        public class MatrixType : Type
+        {
+            Type _Type;
+            public Type Type { get { return _Type; } }
+            uint _Row = 0;
+            public uint RowCount { get { return _Row; } }
+            uint _Col = 0;
+            public uint ColCount { get { return _Col; } }
+
+            public MatrixType(uint Id, uint RowCount, uint ColCount, Type Type) : base(Id) { _Row = RowCount; _Col = ColCount; _Type = Type; }
+            public override string TypeName { get { return _Type.TypeName + "[" + _Row.ToString() + ", " + _Col.ToString() + "]"; } }
+        }
+
         public class Parameter
         {
             Type _Type;
@@ -502,8 +515,18 @@ namespace Ratchet.Code
 
         public static Module LoadFromFile(string File)
         {
+            return Load(System.IO.File.OpenRead(File));
+        }
+
+        public static Module LoadFromBytes(byte[] Data)
+        {
+            return Load(new System.IO.MemoryStream(Data));
+        }
+
+        public static Module Load(System.IO.Stream Stream)
+        {
             Module module = new Module();
-            SPIRVModuleReader reader = SPIRVModuleReader.Create(System.IO.File.OpenRead(File));
+            SPIRVModuleReader reader = SPIRVModuleReader.Create(Stream);
             List<Instruction> instructions = new List<Instruction>();
             Dictionary<uint, string> names = new Dictionary<uint, string>();
             Dictionary<uint, Dictionary<uint, string>> memberNames = new Dictionary<uint, Dictionary<uint, string>>();
@@ -625,6 +648,23 @@ namespace Ratchet.Code
 
                             ArrayType arrayType = new ArrayType(id, items[typeId] as Type, items[lengthId]);
                             items.Add(id, arrayType);
+                        }
+                        break;
+                    case OpCodes.OpTypeMatrix:
+                        {
+                            if (data == null || data.Length != 3) { throw new Exception("Invalid TypeVoid opcode."); }
+                            uint id = data[0];
+                            if (items.ContainsKey(id)) { throw new Exception("The item " + id.ToString() + " has already been declared"); }
+                            uint colTypeId = data[1];
+
+                            if (!items.ContainsKey(colTypeId)) { throw new Exception("The Item " + id.ToString() + " does not exist"); }
+                            if (!(items[colTypeId] is VectorType)) { throw new Exception("The Item " + id.ToString() + " does not represent a vector type"); }
+                            VectorType colType = items[colTypeId] as VectorType;
+
+                            uint colCount = data[2];
+
+                            MatrixType matrixType = new MatrixType(id, colType.ComponentCount, colCount, colType.Type);
+                            items.Add(id, matrixType);
                         }
                         break;
                     case OpCodes.OpTypeVoid:
@@ -827,7 +867,28 @@ namespace Ratchet.Code
                                 items.Add(id, new Constant<object[]>(id, array, type));
                                 break;
                             }
-                            else { throw new Exception("Invalid type for a acomposite constant"); }
+                            else if (items[typeId] is MatrixType)
+                            {
+                                MatrixType type = items[typeId] as MatrixType;
+                                object[,] matrix = new object[type.ColCount, type.RowCount];
+                                for (uint c = 0; c < type.ColCount; c++)
+                                {
+                                    if (!items.ContainsKey(data[c + 2])) { throw new Exception("Invalid id " + data[c + 2] + " the item is not yet declared"); }
+                                    if (!(items[data[c + 2]] is GenericConstant)) { throw new Exception("%" + data[c + 2] + " is not a valid constant"); }
+                                    GenericConstant genericConstant = (items[data[c + 2]] as GenericConstant);
+                                    object vectorObj = genericConstant.GetValue();
+                                    if (!(vectorObj is System.Array)) { throw new Exception("%" + data[c + 2] + " is not a valid vector"); }
+                                    Array vectorAsArray = (vectorObj as System.Array);
+                                    if (vectorAsArray.Length != type.RowCount) { throw new Exception("%" + data[c + 2] + " has not the valid dim"); }
+                                    for (int r = 0; r < type.RowCount; r++)
+                                    {
+                                        matrix[c, r] = vectorAsArray.GetValue(r);
+                                    }
+                                }
+                                items.Add(id, new Constant<object[,]>(id, matrix, type));
+                                break;
+                            }
+                            else { throw new Exception("Invalid type for a a composite constant"); }
                         }
                         break;
                     case OpCodes.OpVariable:

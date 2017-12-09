@@ -11,6 +11,7 @@ namespace spirv_dump
         static void Main(string[] args)
         {
             Ratchet.Code.SPIRV.LoadFromFile(@"C:\Users\rboissel\Source\Repos\ratchet-vulkan\ratchet-vulkan\Samples\Triangle\Shaders\fragmentShader.spv");
+
         }
     }
 }

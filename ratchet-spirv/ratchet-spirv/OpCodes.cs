@@ -27,6 +27,7 @@ namespace Ratchet.Code
             internal const int OpTypeInt = 21;
             internal const int OpTypeFloat = 22;
             internal const int OpTypeVector = 23;
+            internal const int OpTypeMatrix = 24;
             internal const int OpTypeArray = 28;
             internal const int OpTypeStruct = 30;
             internal const int OpTypePointer = 32;
@@ -67,7 +68,7 @@ namespace Ratchet.Code
             public static OpCode TypeInt = new OpCode { WordCount = 4, OpCodeValue = OpTypeInt, Name = "TypeInt" };
             public static OpCode TypeFloat = new OpCode { WordCount = 3, OpCodeValue = OpTypeFloat, Name = "TypeFloat" };
             public static OpCode TypeVector = new OpCode { WordCount = 4, OpCodeValue = OpTypeVector, Name = "TypeVector" };
-            public static OpCode TypeMatrix = new OpCode { WordCount = 4, OpCodeValue = 24, Name = "TypeMatrix" };
+            public static OpCode TypeMatrix = new OpCode { WordCount = 4, OpCodeValue = OpTypeMatrix, Name = "TypeMatrix" };
             public static OpCode TypeImage = new OpCode { WordCount = 9, OpCodeValue = 25, Name = "TypeImage" };
             public static OpCode TypeSampler = new OpCode { WordCount = 2, OpCodeValue = 26, Name = "TypeSampler" };
             public static OpCode TypeSampledImage = new OpCode { WordCount = 3, OpCodeValue = 27, Name = "TypeSampledImage" };

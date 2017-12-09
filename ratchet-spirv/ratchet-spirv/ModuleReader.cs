@@ -40,6 +40,7 @@ namespace Ratchet.Code
                 {
                     _BufferLength = (int)_Stream.Read(_Buffer, 0, _Buffer.Length);
                     if (_BufferLength < 0) { _BufferLength = 0; _EndOfStream = true; }
+                    else { _Offset = 0; }
                 }
                 else { _EndOfStream = true; }
             }
